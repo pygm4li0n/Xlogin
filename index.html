@@ -68,8 +68,9 @@ $('go').onclick = async () => {
   }
   $('go').disabled = true;
   $('lbl').textContent = 'Redirecting to X…';
+  $('err').innerHTML = '';
   const { error } = await db.auth.signInWithOAuth({
-    provider: 'twitter',
+    provider: 'x',
     options: {
       redirectTo: window.location.origin,
       scopes: 'users.read tweet.read'
