@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Sign in with X</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,Inter,sans-serif;background:#0a0a0b;
+       color:#f5f5f7;display:grid;place-items:center;min-height:100vh;padding:24px;
+       background:radial-gradient(1200px 600px at 50% -20%,rgba(29,155,240,.18),transparent 60%),#0a0a0b}
+  .card{background:#131316;border:1px solid #232329;border-radius:20px;
+        padding:32px 28px;max-width:400px;width:100%;
+        box-shadow:0 30px 80px -20px rgba(0,0,0,.8)}
+  .logo{width:52px;height:52px;display:grid;place-items:center;background:#000;
+        border:1px solid #232329;border-radius:14px;margin-bottom:20px}
+  .logo svg{width:24px;height:24px;fill:#fff}
+  h1{font-size:20px;margin:0 0 6px;letter-spacing:-.02em}
+  p{color:#8b8b93;font-size:14px;margin:0 0 22px;line-height:1.5}
+  button{width:100%;padding:14px;background:#fff;color:#000;border:0;border-radius:12px;
+         font-weight:600;font-size:15px;cursor:pointer;
+         display:flex;align-items:center;justify-content:center;gap:10px;
+         transition:background .15s,transform .1s}
+  button:hover:not(:disabled){background:#e7e7e7}
+  button:active:not(:disabled){transform:scale(.98)}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  button svg{width:18px;height:18px;fill:#000}
+  .who{margin-top:18px;padding-top:16px;border-top:1px solid #232329;
+       color:#8b8b93;line-height:1.6;text-align:center;font-size:15px}
+  .who b{color:#f5f5f7;font-size:15px;font-weight:700;display:block}
+  .who .handle{color:#8b8b93;font-size:15px;display:block;margin-top:2px}
+  .who img{display:block;margin:0 auto 12px;width:72px;height:72px;border-radius:50%;
+           border:2px solid #232329;object-fit:cover;background:#1c1c20}
+  .err{margin-top:16px;padding:12px;border-radius:10px;font-size:13px;
+       background:rgba(244,33,46,.08);border:1px solid rgba(244,33,46,.3);color:#ff8a92}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+  </div>
+  <h1>Sign in with X</h1>
+  <p id="msg">Continue to your app using your X account.</p>
+  <button id="go">
+    <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+    <span id="lbl">Continue with X</span>
+  </button>
+  <div id="who" class="who" hidden></div>
+  <div id="err"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://ygmahgaoblaqgmifndgo.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_qV3N0q_a4Y7m_AAo6hPfKQ_V6GNgX-G';
+
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { flowType: 'pkce', detectSessionInUrl: true, persistSession: true }
+});
+
+const $ = id => document.getElementById(id);
+
+$('go').onclick = async () => {
+  const { data: { session } } = await db.auth.getSession();
+  if (session) {
+    await db.auth.signOut();
+    history.replaceState(null, '', window.location.pathname);
+    location.reload();
+    return;
+  }
+  $('go').disabled = true;
+  $('lbl').textContent = 'Redirecting to X…';
+  $('err').innerHTML = '';
+  const { error } = await db.auth.signInWithOAuth({
+    provider: 'x',
+    options: {
+      redirectTo: window.location.href.split('?')[0].split('#')[0],
+      scopes: 'users.read tweet.read'
+    }
+  });
+  if (error) {
+    $('err').innerHTML = `<div class="err">${error.message}</div>`;
+    $('go').disabled = false;
+    $('lbl').textContent = 'Continue with X';
+  }
+};
+
+async function render() {
+  const { data: { session } } = await db.auth.getSession();
+
+  // Limpia la URL (?code= / #access_token=)
+  if (window.location.search || window.location.hash) {
+    history.replaceState(null, '', window.location.pathname);
+  }
+
+  if (!session) {
+    $('msg').textContent = 'Continue to your app using your X account.';
+    $('lbl').textContent = 'Continue with X';
+    $('who').hidden = true;
+    return;
+  }
+
+  const m = session.user.user_metadata || {};
+
+  // Debug: muestra todo lo que X devuelve
+  console.log('user_metadata:', m);
+
+  // Busca la URL del avatar en cualquier campo posible
+  let avatar = m.avatar_url || m.picture || m.profile_image_url ||
+               m.profile_image_url_https || m.avatar || '';
+
+  // X devuelve la versión 48x48 ("_normal"). La cambiamos a 400x400.
+  if (avatar) avatar = avatar.replace('_normal', '_400x400');
+
+  const username = m.user_name || m.preferred_username || m.username || '—';
+  const displayName = m.name || m.full_name || m.display_name || 'X user';
+
+  $('msg').textContent = 'Signed in.';
+  $('lbl').textContent = 'Sign out';
+  $('who').hidden = false;
+  $('who').innerHTML = `
+    ${avatar ? `<img src="${avatar}" alt="avatar" />` : '<div style="width:72px;height:72px;border-radius:50%;background:#1c1c20;margin:0 auto 12px"></div>'}
+    <b>${displayName}</b>
+    <span class="handle">@${username}</span>
+  `;
+}
+
+render();
+db.auth.onAuthStateChange(render);
+</script>
+</body>
+</html>
