@@ -37,12 +37,60 @@ body{
 #go:disabled{opacity:.55;cursor:not-allowed;filter:grayscale(.35)}
 #go.signed-in{background:linear-gradient(135deg,#00ffc6 0%,#1d9bf0 50%,#a855f7 100%);background-size:280% 280%}
 #go svg{width:34px;height:34px;fill:#fff;filter:drop-shadow(0 2px 8px rgba(0,0,0,.35)) drop-shadow(0 0 10px rgba(255,255,255,.6))}
+
+/* ---------- PROFILE WITH CONIC GLOW ---------- */
 #who{margin-top:22px;text-align:center;display:none}
-#who.show{display:block}
-#who img,#who .ph{width:80px;height:80px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 12px;background:#1c1c20;border:2px solid rgba(255,255,255,.14)}
-#who .ph{background:linear-gradient(145deg,#1c1c24,#0e0e14)}
-#who b{display:block;font-size:16px;font-weight:700;color:#f5f5f7}
-#who span{display:block;margin-top:3px;font-size:14px;color:#8b8b9b;font-family:ui-monospace,monospace}
+#who.show{display:block;animation:whoIn .55s cubic-bezier(.2,.9,.25,1) both}
+@keyframes whoIn{
+  from{opacity:0;transform:translateY(14px) scale(.96)}
+  to  {opacity:1;transform:translateY(0) scale(1)}
+}
+
+.ava{
+  position:relative;
+  width:80px;height:80px;
+  margin:0 auto 13px;
+}
+.ava::before{
+  content:'';
+  position:absolute; inset:-5px;
+  border-radius:50%;
+  background:conic-gradient(from 0deg,#1d9bf0,#a855f7,#ff2d95,#00ffc6,#1d9bf0);
+  filter:blur(9px);
+  opacity:.9;
+  animation:spin 4.5s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ava img,
+.ava .ph{
+  position:relative;
+  z-index:1;
+  width:100%;height:100%;
+  border-radius:50%;
+  object-fit:cover;
+  background:#1c1c20;
+  border:2px solid rgba(255,255,255,.14);
+  display:block;
+}
+.ava .ph{
+  background:linear-gradient(145deg,#1c1c24,#0e0e14);
+  border:2px solid rgba(255,255,255,.08);
+}
+
+#who b{
+  display:block;
+  color:#f5f5f7;
+  font-size:16px;
+  font-weight:700;
+  text-shadow:0 0 22px rgba(168,85,247,.55);
+}
+#who span{
+  display:block;
+  margin-top:3px;
+  color:#8b8b9b;
+  font-size:14px;
+  font-family:ui-monospace,monospace;
+}
 </style>
 </head>
 <body>
@@ -110,7 +158,11 @@ async function render(){
 
   who.classList.add('show');
   who.innerHTML = `
-    ${avatar ? `<img src="${esc(avatar)}" alt="" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=ph></div>'"/>` : '<div class="ph"></div>'}
+    <div class="ava">
+      ${avatar
+        ? `<img src="${esc(avatar)}" alt="" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=ph></div>'"/>`
+        : '<div class="ph"></div>'}
+    </div>
     <b>${esc(name)}</b>
     <span>@${esc(username)}</span>
   `;
