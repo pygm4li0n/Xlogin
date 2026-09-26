@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>X</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,Inter,"Segoe UI",sans-serif;
+  background:#05050a;color:#f5f5f7;
+  display:grid;place-items:center;min-height:100vh;padding:24px;
+}
+#go{
+  position:relative;width:76px;height:76px;aspect-ratio:1/1;
+  border:0;border-radius:20px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
+  background:linear-gradient(135deg,#1d9bf0 0%,#a855f7 38%,#ff2d95 68%,#00ffc6 100%);
+  background-size:280% 280%;
+  animation:gs 6s ease infinite;
+  box-shadow:0 14px 40px -14px rgba(168,85,247,.95),0 0 60px -20px rgba(29,155,240,.8),0 0 0 1px rgba(255,255,255,.14) inset;
+  transition:transform .18s cubic-bezier(.2,.9,.3,1),box-shadow .3s,filter .3s;
+}
+#go::after{
+  content:'';position:absolute;top:-60%;left:-70%;width:38%;height:220%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.6),transparent);
+  transform:rotate(20deg);animation:sweep 3.6s ease-in-out infinite;pointer-events:none;
+}
+@keyframes gs{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes sweep{0%,12%{left:-70%}55%,100%{left:140%}}
+#go:hover:not(:disabled){
+  filter:brightness(1.18) saturate(1.25);transform:translateY(-2px) scale(1.04);
+  box-shadow:0 20px 52px -14px rgba(255,45,149,.95),0 0 80px -14px rgba(0,255,198,.7),0 0 0 1px rgba(255,255,255,.28) inset;
+}
+#go:active:not(:disabled){transform:scale(.96)}
+#go:disabled{opacity:.55;cursor:not-allowed;filter:grayscale(.35)}
+#go.signed-in{background:linear-gradient(135deg,#00ffc6 0%,#1d9bf0 50%,#a855f7 100%);background-size:280% 280%}
+#go svg{width:34px;height:34px;fill:#fff;filter:drop-shadow(0 2px 8px rgba(0,0,0,.35)) drop-shadow(0 0 10px rgba(255,255,255,.6))}
+#who{margin-top:22px;text-align:center;display:none}
+#who.show{display:block}
+#who img,#who .ph{width:80px;height:80px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 12px;background:#1c1c20;border:2px solid rgba(255,255,255,.14)}
+#who .ph{background:linear-gradient(145deg,#1c1c24,#0e0e14)}
+#who b{display:block;font-size:16px;font-weight:700;color:#f5f5f7}
+#who span{display:block;margin-top:3px;font-size:14px;color:#8b8b9b;font-family:ui-monospace,monospace}
+</style>
+</head>
+<body>
+
+<button id="go" type="button" aria-label="Continue with X">
+  <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+</button>
+
+<div id="who"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const db = supabase.createClient(
+  'https://ygmahgaoblaqgmifndgo.supabase.co',
+  'sb_publishable_qV3N0q_a4Y7m_AAo6hPfKQ_V6GNgX-G',
+  { auth:{ flowType:'pkce', detectSessionInUrl:true, persistSession:true } }
+);
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+$('go').onclick = async () => {
+  const { data:{ session } } = await db.auth.getSession();
+  if (session) {
+    await db.auth.signOut();
+    history.replaceState(null,'',location.pathname);
+    location.reload();
+    return;
+  }
+  $('go').disabled = true;
+  const { error } = await db.auth.signInWithOAuth({
+    provider:'x',
+    options:{
+      redirectTo: location.href.split('?')[0].split('#')[0],
+      scopes:'users.read tweet.read'
+    }
+  });
+  if (error) $('go').disabled = false;
+};
+
+async function render(){
+  const { data:{ session } } = await db.auth.getSession();
+  if (location.search || location.hash) history.replaceState(null,'',location.pathname);
+
+  const btn = $('go'), who = $('who');
+
+  if (!session){
+    btn.disabled = false;
+    btn.classList.remove('signed-in');
+    btn.setAttribute('aria-label','Continue with X');
+    who.classList.remove('show');
+    who.innerHTML = '';
+    return;
+  }
+
+  const m = session.user.user_metadata || {};
+  let avatar = m.avatar_url || m.picture || m.profile_image_url || m.profile_image_url_https || m.avatar || '';
+  if (avatar) avatar = avatar.replace('_normal','_400x400');
+  const username = m.user_name || m.preferred_username || m.username || '—';
+  const name     = m.name || m.full_name || m.display_name || 'X user';
+
+  btn.disabled = false;
+  btn.classList.add('signed-in');
+  btn.setAttribute('aria-label','Sign out');
+
+  who.classList.add('show');
+  who.innerHTML = `
+    ${avatar ? `<img src="${esc(avatar)}" alt="" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=ph></div>'"/>` : '<div class="ph"></div>'}
+    <b>${esc(name)}</b>
+    <span>@${esc(username)}</span>
+  `;
+}
+
+render();
+db.auth.onAuthStateChange(render);
+</script>
+</body>
+</html>
